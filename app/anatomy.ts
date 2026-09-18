@@ -20,8 +20,32 @@ export interface Part {id:string;name:string;conceptId:string;system:SystemId;ch
 export interface Concept {id:string;name:string;elements:string[]}
 export interface Atlas {version:string;sex?:'male';source?:string;scope?:string;parts:Part[];concepts:Concept[];chunks:{url:string;bytes:number;gzip?:string;gzipBytes?:number}[];triangles:number}
 export type View = 'three-quarter'|'front'|'back'|'side';
-export interface SceneState {inspectorOpen?:boolean;explode:number;visible:SystemId[];selected:string[];isolate:boolean;view:View;rotate:boolean;reset:number}
+export type Region = 'all'|'head'|'brain'|'spine'|'nerves';
+export type Theme = 'light'|'dark';
+export interface SceneState {inspectorOpen?:boolean;explode:number;region:Region;theme:Theme;visible:SystemId[];hidden:string[];selected:string[];isolate:boolean;view:View;rotate:boolean;reset:number}
 export const DEFAULT_VISIBLE:SystemId[] = ['cardiac','sensory','skeletal','muscular','arterial','venous','nervous','respiratory','digestive','urinary','lymphatic','endocrine','reproductive','connective'];
+// ---- Regional focus: everything above the neckline, or the brain and its vessels ----
+export const HEAD_MIN_Y = 1.5;
+const BRAIN_NAME = /cerebr|brain|mening|ventricl|choroid|thalam|hypothalam|hippocamp|amygdal|\bons\b|medulla|cerebell|corpus callosum|fornix|insula|internal capsule|nucleus|gyrus|lobe|lobule|colliculus|geniculate|commissure|habenula|mammillary|aqueduct|midbrain|peduncle|stria|lamina terminalis|tuber cinereum|septum of telenceph|interpeduncular|spinal cord|\bnerve\b|ganglion|plexus|carotid|\bvertebral\b|basilar|jugular|sinus|choroidal|communicating|pericallosal|callosal|striat|vermi|pontine|medullary|ophthalmic|tentorium|dura|arachnoid|pituitary|pineal/i;
+export const isHeadPart=(p:Part)=>p.bounds[0][1]>=HEAD_MIN_Y;
+export const isBrainPart=(p:Part)=>isHeadPart(p)&&(p.system==='nervous'||BRAIN_NAME.test(p.name));
+// The vertebral column: vertebrae and discs from C1 to the sacrum, the paraspinal muscles and the vessels that run with them.
+const SPINE_INC=/vertebr|intervertebral|^atlas$|^axis$|sacrum|coccyx|spinal cord|central canal|vertebral artery|spinal artery|sacral vein|interspinal|intertransversar|rotator|semispinalis|multifidus|spinalis/i;
+const SPINE_EXC=/coccygeus|iliococcygeus|pubococcygeus|deltoid|levator|longus|thyrocervical|costocervical|transverse cervical|superficial cervical|deep cervical/i;
+export const isSpinePart=(p:Part)=>SPINE_INC.test(p.name)&&!SPINE_EXC.test(p.name);
+export const inRegion=(p:Part,r:Region)=>r==='all'?true:r==='head'?isHeadPart(p):r==='brain'?isBrainPart(p):r==='spine'?isSpinePart(p):p.system==='nervous';
+export const REGIONS:{id:Region;label:string;hint:string}[]=[
+ {id:'all',label:'All',hint:'Show the whole body'},
+ {id:'head',label:'Head',hint:'Everything above the neckline: skull, brain, face, eyes, teeth, vessels'},
+ {id:'brain',label:'Brain',hint:'The brain, cranial nerves and the vessels that supply them'},
+ {id:'spine',label:'Spine',hint:'Vertebrae C1 to sacrum, every disc, the paraspinal muscles and their vessels'},
+ {id:'nerves',label:'Nerves',hint:'Every modelled nerve, ganglion and plexus (this atlas models these in the head and neck only)'},
+];
+// ---- Scene palette per theme: background, studio floor and lighting ----
+export const SCENE_PALETTE:Record<Theme,{clear:string;ground:number;platform:number;ring:number;ringOpacity:number;innerRing:number;innerOpacity:number;hemiSky:number;hemiGround:number;hemiIntensity:number;marker:number;exposure:number}> = {
+ light:{clear:'#f2f3f3',ground:0xd5d9dc,platform:0xeeeeec,ring:0x8c969f,ringOpacity:.4,innerRing:0xa4aeb8,innerOpacity:.16,hemiSky:0xffffff,hemiGround:0xa7acb2,hemiIntensity:1.05,marker:0x64748b,exposure:1.12},
+ dark:{clear:'#0e1116',ground:0x151b22,platform:0x1b222b,ring:0x3a4756,ringOpacity:.55,innerRing:0x2c3743,innerOpacity:.3,hemiSky:0xb9c6d4,hemiGround:0x1a2027,hemiIntensity:.9,marker:0x9fb0c0,exposure:1.28},
+};
 export const EXPLANATIONS:Record<string,string> = {
  'heart':'A muscular pump in the chest. Its right side sends blood to the lungs; its left side sends blood through the systemic circulation.',
  'liver':'A large organ beneath the right side of the diaphragm. It processes absorbed nutrients, produces bile, and synthesizes many proteins carried in the blood.',
